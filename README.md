@@ -54,6 +54,7 @@ The snapshot.xml file:
                         <value><![CDATA[0]]></value>
                     </set>
                 </update>
+	    </core_config_data>	
 	</import>
    </live>
 
