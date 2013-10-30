@@ -55,5 +55,5 @@ The snapshot.xml file:
                     </set>
                 </update>
 	</import>
-   <live>
+   </live>
 
