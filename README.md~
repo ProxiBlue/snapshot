@@ -15,9 +15,9 @@ How does it work:
 When run, the script makes a ssh connection to the remote server, and runs the mysql dumps locally on the remote server.
 Two files are created: a structure file (with all tables) and a data file, with limited tables.
 Scp is used to copy them to the snapshot folder in your magento root.
-The local snaphost files can then be imported to a local database (usually the db as configured in your magento local.xml, thus replacing your local db)
+The local snaphost files can then be imported to a local database (usually the db as configured in your magento local.xml, thus replacing your lcoal db.
 
-If the linux [pv](http://linux.die.net/man/1/pv) tool is installed, import will show a progress bar (handy for large databases)
+If the linux pv tool is installed, import will show a progress bar (handy for large databases)
 Commands:
 
 --fetch [server] Do export and import in one go.  Current database will be replaced with fetched 
