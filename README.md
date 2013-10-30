@@ -56,5 +56,5 @@ The snapshot.xml file:
                 </update>
 	    </core_config_data>	
 	</import>
-   </live>
+    </live>
 
