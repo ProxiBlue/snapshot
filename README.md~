@@ -53,8 +53,8 @@ The snapshot.xml file:
                         <field><![CDATA[value]]></field>
                         <value><![CDATA[0]]></value>
                     </set>
-                </update
-            </core_config_data>	
-        </import>
+                </update>
+	    </core_config_data>	
+	</import>
     </live>
 
