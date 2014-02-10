@@ -76,12 +76,12 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
 
         # Dump the database
         echo "Extracting structure...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump -d -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -d -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
         passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_structure_" . $timestamp . ".sql.gz {$snapshot}/{$profile}_structure.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_structure_" . $timestamp . ".sql.gz'");
 
         echo "Extracting data...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} $ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} $ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
         passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_data_" . $timestamp . ".sql.gz {$snapshot}/{$profile}_data.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_data_" . $timestamp . ".sql.gz'");
 
