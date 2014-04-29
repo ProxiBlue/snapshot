@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Author: Lucas van Satden
+ * Author: Lucas van Staden
  * Used by developers to grab a snapshot of databases
  * requires an xml file for configuration which is placed in app/etc/snapshot.xml
  * 
@@ -18,16 +18,27 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
     protected $_localDB = null;
     protected $_configXml = null;
     protected $_snapshotXml = null;
+    protected $_db = null;
+    protected $_snapshot = null;
+    protected $_ignoreTables = null;
 
     public function __construct() {
         parent::__construct();
         $localXML = $this->_getRootPath() . 'app' . DIRECTORY_SEPARATOR . 'etc' . DIRECTORY_SEPARATOR . 'local.xml';
         $this->_configXml = simplexml_load_string(file_get_contents($localXML));
-        $snapshotXml = $this->_getRootPath() . 'app' . DIRECTORY_SEPARATOR . 'etc' . DIRECTORY_SEPARATOR . 'snapshot.xml';
-        if(!file_exists($snapshotXml)) {
-            die("Your config file is missing. {$snapshotXml}");
+        $this->_snapshotXml = $this->_getRootPath() . 'app' . DIRECTORY_SEPARATOR . 'etc' . DIRECTORY_SEPARATOR . 'snapshot.xml';
+        if (!file_exists($this->_snapshotXml)) {
+            die("Your config file is missing. {$this->_snapshotXml}");
         }
-        $this->_snapshotXml = simplexml_load_string(file_get_contents($snapshotXml));
+        $this->_snapshotXml = simplexml_load_string(file_get_contents($this->_snapshotXml));
+        
+        $rootpath = $this->_getRootPath();
+        $this->_snapshot = $rootpath . 'snapshot';
+
+        # Create the snapshot directory if not exists
+        if (!file_exists($this->_snapshot)) {
+            mkdir($this->_snapshot);
+        }
     }
 
     /**
@@ -42,6 +53,8 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         } else if ($this->getArg('fetch')) {
             $this->_export($this->getArg('fetch'));
             $this->_import($this->getArg('fetch'));
+        } else if ($this->getArg('copy')) {
+            $this->_copy($this->getArg('copy'));
         } else {
             echo $this->usageHelp();
         }
@@ -62,81 +75,123 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         if (empty($connection->ssh_port)) {
             $connection->ssh_port = 22;
         }
+        
+        $structureOnly = $this->_snapshotXml->structure;
+        $this->_ignoreTables = " --ignore-table={$connection->dbname}." . implode(" --ignore-table={$connection->dbname}.", explode(',', $structureOnly->ignore_tables));
 
-        $structureOnly = $this->_snapshotXml->$profile->structure;
-        $ignoreTables = " --ignore-table={$connection->dbname}." . implode(" --ignore-table={$connection->dbname}.", explode(',', $structureOnly->ignore_tables));
-
-        $rootpath = $this->_getRootPath();
-        $snapshot = $rootpath . 'snapshot';
-
-        # Create the snapshot directory if not exists
-        if (!file_exists($snapshot)) {
-            mkdir($snapshot);
-        }
 
         # Dump the database
         echo "Extracting structure...\n";
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -d -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
-        passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_structure_" . $timestamp . ".sql.gz {$snapshot}/{$profile}_structure.sql.gz");
+        passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_structure_" . $timestamp . ".sql.gz {$this->_snapshot}/{$profile}_structure.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_structure_" . $timestamp . ".sql.gz'");
 
         echo "Extracting data...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} $ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
-        passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_data_" . $timestamp . ".sql.gz {$snapshot}/{$profile}_data.sql.gz");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} $this->_ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
+        passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_data_" . $timestamp . ".sql.gz {$this->_snapshot}/{$profile}_data.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_data_" . $timestamp . ".sql.gz'");
 
         echo "Done\n";
     }
 
+    function _copy($newName) {
+        
+        $structureOnly = $this->_snapshotXml->structure;
+        $this->_ignoreTables = " --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}." . implode(" --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}.", explode(',', $structureOnly->ignore_tables));
+        
+        $this->getConnection();
+        # Dump the database to a local copy
+        echo "Extracting structure...\n";
+        passthru("mysqldump --single-transaction -d -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname} >> {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
+        echo "Extracting data...\n";
+        passthru("mysqldump --single-transaction -d -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname} $this->_ignoreTables >> {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql");
+
+        // create new db
+        echo "Creating Database: " . $this->_configXml->global->resources->default_setup->connection->dbname . "-{$newName}\n";
+        passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} create {$this->_configXml->global->resources->default_setup->connection->dbname}-$newName");
+
+        // import to new db
+        $pv = "";
+        $hasPv = shell_exec("which pv");
+        echo "Importing structure...\n";
+        passthru("{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}-{$newName}");
+        echo "Importing data...\n";
+        passthru("{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}-{$newName}");
+        
+        //cleanup
+        unlink("{$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
+        unlink("{$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql");
+        
+        echo "A copy of {$this->_configXml->global->resources->default_setup->connection->dbname} was made to {$this->_configXml->global->resources->default_setup->connection->dbname}-${newName}";
+    }
+
     function _import($profile) {
 
         $rootpath = $this->_getRootPath();
-        $snapshot = $rootpath . 'snapshot';
+        $this->_snapshot = $rootpath . 'snapshot';
+
+        echo "Dropping Database: " . $this->_configXml->global->resources->default_setup->connection->dbname . "\n";
+        passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} drop {$this->_configXml->global->resources->default_setup->connection->dbname}");
 
         echo "Creating Database: " . $this->_configXml->global->resources->default_setup->connection->dbname . "\n";
         passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} create {$this->_configXml->global->resources->default_setup->connection->dbname}");
-        
+
         // import structure
         $pv = "";
         $hasPv = shell_exec("which pv");
         if (!empty($hasPv)) {
             echo "Structure...\n";
             echo "Extracting...\n";
-            passthru("gzip -d {$snapshot}/{$profile}_structure.sql.gz");
+            passthru("gzip -d {$this->_snapshot}/{$profile}_structure.sql.gz");
             echo "Importing...\n";
-            passthru("pv {$snapshot}/{$profile}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("pv {$this->_snapshot}/{$profile}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
             echo "Repacking...\n";
-            passthru("gzip {$snapshot}/{$profile}_structure.sql");
+            passthru("gzip {$this->_snapshot}/{$profile}_structure.sql");
             echo "Data...\n";
             echo "Extracting...\n";
-            passthru("gzip -d {$snapshot}/{$profile}_data.sql.gz");
+            passthru("gzip -d {$this->_snapshot}/{$profile}_data.sql.gz");
             echo "Importing...\n";
-            passthru("pv {$snapshot}/{$profile}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("pv {$this->_snapshot}/{$profile}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
             echo "Repacking...\n";
-            passthru("gzip {$snapshot}/{$profile}_data.sql");
+            passthru("gzip {$this->_snapshot}/{$profile}_data.sql");
         } else {
             echo "install pv ( sudo apt-get install pv ) to get a progress indicator for importing!\n";
 
             echo "Importing structure...\n";
-            passthru("zcat {$snapshot}/{$profile}_structure.sql.gz | {$pv} mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("zcat {$this->_snapshot}/{$profile}_structure.sql.gz | {$pv} mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
             // import data
             echo "Importing data...\n";
-            passthru("zcat {$snapshot}/{$profile}_data.sql.gz | {$pv} mysql -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("zcat {$this->_snapshot}/{$profile}_data.sql.gz | {$pv} mysql -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
         }
 
         // lets manipulate the database.
         // at this pont we can instantiate the magento system, as the datbaase is now imported.
+        $this->getConnection();
+
+        // common import updates
+        foreach ($this->_snapshotXml->import as $key => $importUpdates) {
+            echo "GLOBAL CHANGES\n";
+            $this->importUpdates($importUpdates);
+        }
+
+        // site specific import updates
+        foreach ($this->_snapshotXml->$profile->import as $key => $importUpdates) {
+            echo "PROFILE CHANGES\n";
+            $this->importUpdates($importUpdates);
+        }
+    }
+
+    private function getConnection() {
         require_once $this->_getRootPath() . 'app' . DIRECTORY_SEPARATOR . 'Mage.php';
         Mage::app($this->_appCode, $this->_appType);
-
         try {
-            $db = Zend_Db::factory('Pdo_Mysql', array(
+            $this->_db = Zend_Db::factory('Pdo_Mysql', array(
                         'host' => $this->_configXml->global->resources->default_setup->connection->host,
                         'username' => $this->_configXml->global->resources->default_setup->connection->username,
                         'password' => $this->_configXml->global->resources->default_setup->connection->password,
                         'dbname' => $this->_configXml->global->resources->default_setup->connection->dbname
-                    ));
-            $db->getConnection();
+            ));
+            $this->_db->getConnection();
         } catch (Zend_Db_Adapter_Exception $e) {
             mage::throwException($e);
             die($e->getMessage());
@@ -144,29 +199,42 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             mage::throwException($e);
             die($e->getMessage());
         }
+        
+    }
 
-
-        foreach ($this->_snapshotXml->$profile->import as $key => $importUpdates) {
-            foreach ($importUpdates as $tableName => $changes) {
-                foreach ($changes as $changeKey => $updateData) {
-                    switch ($changeKey) {
-                        case 'update':
-                            try {
-                                $db->getProfiler()->setEnabled(true);
-                                $where = $updateData->where->field . " = '" . $updateData->where->value . "'";
-                                $db->update($tableName, array((string) $updateData->set->field => (string) $updateData->set->value), $where);
-                                echo "UPDATE: {$tableName} {$updateData->where->value} => {$updateData->set->value}\n";
-                            } catch (Exception $e) {
-                                echo"Failed to do an update:";
-                                Zend_Debug::dump($db->getProfiler()->getLastQueryProfile()->getQuery());
-                                Zend_Debug::dump($db->getProfiler()->getLastQueryProfile()->getQueryParams());
-                                $db->getProfiler()->setEnabled(false);
-                            }
-                            break;
-                        default:
-                            echo "import method {$changeKey} not yet implemented!";
-                            break;
-                    }
+    private function importUpdates($importUpdates) {
+        foreach ($importUpdates as $tableName => $changes) {
+            foreach ($changes as $changeKey => $updateData) {
+                switch ($changeKey) {
+                    case 'update':
+                        try {
+                            $this->_db->getProfiler()->setEnabled(true);
+                            $where = $updateData->where->field . " = '" . $updateData->where->value . "'";
+                            $this->_db->update($tableName, array((string) $updateData->set->field => (string) $updateData->set->value), $where);
+                            echo "UPDATE: {$tableName} {$where}\n";
+                        } catch (Exception $e) {
+                            echo"Failed to do an update:";
+                            Zend_Debug::dump($this->_db->getProfiler()->getLastQueryProfile()->getQuery());
+                            Zend_Debug::dump($this->_db->getProfiler()->getLastQueryProfile()->getQueryParams());
+                            $this->_db->getProfiler()->setEnabled(false);
+                        }
+                        break;
+                    case 'delete':
+                        try {
+                            $this->_db->getProfiler()->setEnabled(true);
+                            $where = $updateData->where->field . " = '" . $updateData->where->value . "'";
+                            $this->_db->delete($tableName, $where);
+                            echo "DELETE: {$tableName} {$where}\n";
+                        } catch (Exception $e) {
+                            echo"Failed to do a delete:";
+                            Zend_Debug::dump($this->_db->getProfiler()->getLastQueryProfile()->getQuery());
+                            Zend_Debug::dump($this->_db->getProfiler()->getLastQueryProfile()->getQueryParams());
+                            $this->_db->getProfiler()->setEnabled(false);
+                        }
+                        break;
+                    default:
+                        echo "import method {$changeKey} not yet implemented!";
+                        break;
                 }
             }
         }
@@ -193,9 +261,9 @@ Options:
   help              This help
                 
   --fetch [server] Do export and import in one go.  Current database will be replaced with update 
-  
   --export-remote [server]  Take snapshot of the given remote server [must be defined in snapshot.xml]
   --import [server] Import the given snapshot
+  --copy [newname] Copy the current (local) database to a new database - will create a copy of the local db with the current name prefixed to the given new name. Used for branching in GIT              
    
 USAGE;
     }
