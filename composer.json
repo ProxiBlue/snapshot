@@ -1,0 +1,34 @@
+{
+    "name": "proxiblue/snapshot",
+    "type": "magento-module",
+    "license": "OSL-3.0",
+    "homepage": "https://github.com/ProxiBlue/snapshot",
+    "description": "A developers way of importing remote databases for magento",
+    "authors": [
+        {
+            "name": "Lucas van Staden",
+            "email": "sales@proxiblue.com.au"
+        }
+    ],
+    "require": {
+        "magento-hackathon/magento-composer-installer": "*"
+    },
+    "extra": {
+        "map": [
+            [
+                "/shell/snapshot.php",
+                "/shell/snapshot.php"
+            ],
+            [
+                "/app/etc/snapshot.xml",
+                "/app/etc/snapshot.xml"
+            ]
+        ]
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/ProxiBlue/snapshot.git"
+        }
+    ]
+}
