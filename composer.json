@@ -20,8 +20,8 @@
                 "/shell/snapshot.php"
             ],
             [
-                "/app/etc/snapshot.xml",
-                "/app/etc/snapshot.xml"
+                "/app/etc/snapshot_example.xml",
+                "/app/etc/snapshot_example.xml"
             ]
         ]
     },
