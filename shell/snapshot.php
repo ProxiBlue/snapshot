@@ -4,13 +4,13 @@
  * Author: Lucas van Staden
  * Used by developers to grab a snapshot of databases
  * requires an xml file for configuration which is placed in app/etc/snapshot.xml
- * 
+ *
  */
 require_once 'abstract.php';
 
 /**
  * Snapshot shell script
- * @author      Lucas van Staden 
+ * @author      Lucas van Staden
  */
 class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
 
@@ -31,7 +31,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             die("Your config file is missing. {$this->_snapshotXml}");
         }
         $this->_snapshotXml = simplexml_load_string(file_get_contents($this->_snapshotXml));
-        
+
         $rootpath = $this->_getRootPath();
         $this->_snapshot = $rootpath . 'snapshot';
 
@@ -77,7 +77,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         if (empty($connection->ssh_port)) {
             $connection->ssh_port = 22;
         }
-        
+
         $structureOnly = $this->_snapshotXml->structure;
         $this->_ignoreTables = " --ignore-table={$connection->dbname}." . implode(" --ignore-table={$connection->dbname}.", explode(',', $structureOnly->ignore_tables));
 
@@ -97,10 +97,10 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
     }
 
     function _copy($newName) {
-        
+
         $structureOnly = $this->_snapshotXml->structure;
         $this->_ignoreTables = " --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}." . implode(" --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}.", explode(',', $structureOnly->ignore_tables));
-        
+
         $this->getConnection();
         # Dump the database to a local copy
         echo "Extracting structure...\n";
@@ -119,18 +119,18 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         passthru("{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}");
         echo "Importing data...{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}\n";
         passthru("{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}");
-        
+
         //cleanup
         unlink("{$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
         unlink("{$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql");
-        
+
         echo "A copy of {$this->_configXml->global->resources->default_setup->connection->dbname} was made to {$this->_configXml->global->resources->default_setup->connection->dbname}-${newName}";
     }
-    
+
     function _copy_to_remote($profile,$dbName=null) {
-        
+
         $connection = $this->_snapshotXml->$profile->connection;
-        
+
         if (!$connection) {
             echo "Could not find a snapshot configuration for " . $profile;
             echo $this->usageHelp();
@@ -140,14 +140,14 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         if (empty($connection->ssh_port)) {
             $connection->ssh_port = 22;
         }
-        
+
         if(is_null($dbName)){
             $dbName = $this->_configXml->global->resources->default_setup->connection->dbname;
         }
-        
+
         $structureOnly = $this->_snapshotXml->structure;
         $this->_ignoreTables = " --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}." . implode(" --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}.", explode(',', $structureOnly->ignore_tables));
-        
+
         $this->getConnection();
         # Dump the database to a local copy
         echo "Extracting structure...\n";
@@ -158,12 +158,12 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         // create new db on the remote
         echo "Creating Database on Remote: {$dbName}\n";
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqladmin -h localhost -u {$connection->db_username} --password={$connection->db_password} create {$dbName}'");
-        
+
         //copy the exported files to the remote
         echo "Copy dump files to Remote\n";
         passthru("scp -P {$connection->ssh_port} {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql {$connection->ssh_username}@{$connection->host}:~/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
         passthru("scp -P {$connection->ssh_port} {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql {$connection->ssh_username}@{$connection->host}:~/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql");
-        
+
         // import to new remote db
         echo "Importing structure...\n";
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h localhost -u {$connection->db_username} --password={$connection->db_password} {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql'");
@@ -174,7 +174,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         echo "Cleanup - removing remote dump files...\n";
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql'");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql'");
-        
+
         echo "Database was copied to remote...";
     }
 
@@ -252,7 +252,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             mage::throwException($e);
             die($e->getMessage());
         }
-        
+
     }
 
     private function importUpdates($importUpdates) {
@@ -312,13 +312,13 @@ Usage:  php -f $self -- [options]
 Options:
 
   help              This help
-                
-  --fetch <profile> Do export and import in one go.  Current database will be replaced with update 
+
+  --fetch <profile> Do export and import in one go.  Current database will be replaced with update
   --export-remote <profile>  Take snapshot of the given remote server [must be defined in snapshot.xml]
   --import <profile> Import the given snapshot
-  --copy [newname] Copy the current (local) database to a new database - will create a copy of the local db with the current name prefixed to the given new name. Used for branching in GIT           
-  --copy-to-remote <profile> [--dbname <name of db>] Copy the local db to the remote server. If no dbname is given it will be named as is the local db name              
-   
+  --copy [newname] Copy the current (local) database to a new database - will create a copy of the local db with the current name prefixed to the given new name. Used for branching in GIT
+  --copy-to-remote <profile> [--dbname <name of db>] Copy the local db to the remote server. If no dbname is given it will be named as is the local db name
+
 USAGE;
     }
 
