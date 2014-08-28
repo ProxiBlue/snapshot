@@ -23,6 +23,9 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
     protected $_ignoreTables = null;
 
     public function __construct() {
+        
+        require_once $this->_getRootPath() . 'app' . DIRECTORY_SEPARATOR . 'Mage.php';
+        
         parent::__construct();
         $localXML = $this->_getRootPath() . 'app' . DIRECTORY_SEPARATOR . 'etc' . DIRECTORY_SEPARATOR . 'local.xml';
         $this->_configXml = simplexml_load_string(file_get_contents($localXML));
