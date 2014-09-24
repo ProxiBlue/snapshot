@@ -79,3 +79,6 @@ The snapshot.xml file:
         </core_config_data>	
     </import>
 </snapshots>
+
+
+I placed some examples in the GIST: https://gist.github.com/ProxiBlue/7e33bc24d7333b4db83f of real world example I use daily.
