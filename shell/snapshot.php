@@ -23,9 +23,9 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
     protected $_ignoreTables = null;
 
     public function __construct() {
-        
+
         require_once $this->_getRootPath() . 'app' . DIRECTORY_SEPARATOR . 'Mage.php';
-        
+
         parent::__construct();
         $localXML = $this->_getRootPath() . 'app' . DIRECTORY_SEPARATOR . 'etc' . DIRECTORY_SEPARATOR . 'local.xml';
         $this->_configXml = simplexml_load_string(file_get_contents($localXML));
@@ -87,12 +87,12 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
 
         # Dump the database
         echo "Extracting structure...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -d -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -d -h localhost -u {$connection->db_username} --password='{$connection->db_password}' {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
         passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_structure_" . $timestamp . ".sql.gz {$this->_snapshot}/{$profile}_structure.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_structure_" . $timestamp . ".sql.gz'");
 
         echo "Extracting data...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h localhost -u {$connection->db_username} --password={$connection->db_password} {$connection->dbname} $this->_ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h localhost -u {$connection->db_username} --password='{$connection->db_password}' {$connection->dbname} $this->_ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
         passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_data_" . $timestamp . ".sql.gz {$this->_snapshot}/{$profile}_data.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_data_" . $timestamp . ".sql.gz'");
 
@@ -107,21 +107,21 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         $this->getConnection();
         # Dump the database to a local copy
         echo "Extracting structure...\n";
-        passthru("mysqldump --single-transaction -d -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname} >> {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
+        passthru("mysqldump --single-transaction -d -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname} >> {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
         echo "Extracting data...\n";
-        passthru("mysqldump --single-transaction -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname} $this->_ignoreTables >> {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql");
+        passthru("mysqldump --single-transaction -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname} $this->_ignoreTables >> {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql");
 
         // create new db
         echo "Creating Database: " . $this->_configXml->global->resources->default_setup->connection->dbname . "_{$newName}\n";
-        passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} create {$this->_configXml->global->resources->default_setup->connection->dbname}_$newName");
+        passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' create {$this->_configXml->global->resources->default_setup->connection->dbname}_$newName");
 
         // import to new db
         $pv = "";
         $hasPv = shell_exec("which pv");
         echo "Importing structure...\n";
-        passthru("{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}");
-        echo "Importing data...{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}\n";
-        passthru("{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}");
+        passthru("{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}");
+        echo "Importing data...{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}\n";
+        passthru("{$pv} cat {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}_{$newName}");
 
         //cleanup
         unlink("{$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
@@ -154,13 +154,13 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         $this->getConnection();
         # Dump the database to a local copy
         echo "Extracting structure...\n";
-        passthru("mysqldump --single-transaction -d -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname} > {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
+        passthru("mysqldump --single-transaction -d -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname} > {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql");
         echo "Extracting data...\n";
-        passthru("mysqldump --single-transaction -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname} $this->_ignoreTables > {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql");
+        passthru("mysqldump --single-transaction -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname} $this->_ignoreTables > {$this->_snapshot}/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql");
 
         // create new db on the remote
         echo "Creating Database on Remote: {$dbName}\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqladmin -h localhost -u {$connection->db_username} --password={$connection->db_password} create {$dbName}'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqladmin -h localhost -u {$connection->db_username} --password='{$connection->db_password}' create {$dbName}'");
 
         //copy the exported files to the remote
         echo "Copy dump files to Remote\n";
@@ -169,9 +169,9 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
 
         // import to new remote db
         echo "Importing structure...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h localhost -u {$connection->db_username} --password={$connection->db_password} {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h localhost -u {$connection->db_username} --password='{$connection->db_password}' {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql'");
         echo "Importing data...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h localhost -u {$connection->db_username} --password={$connection->db_password} {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h localhost -u {$connection->db_username} --password='{$connection->db_password}' {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql'");
 
         //cleanup
         echo "Cleanup - removing remote dump files...\n";
@@ -187,10 +187,10 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         $this->_snapshot = $rootpath . 'snapshot';
 
         echo "Dropping Database: " . $this->_configXml->global->resources->default_setup->connection->dbname . "\n";
-        passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} drop {$this->_configXml->global->resources->default_setup->connection->dbname}");
+        passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' drop {$this->_configXml->global->resources->default_setup->connection->dbname}");
 
         echo "Creating Database: " . $this->_configXml->global->resources->default_setup->connection->dbname . "\n";
-        passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} create {$this->_configXml->global->resources->default_setup->connection->dbname}");
+        passthru("mysqladmin -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' create {$this->_configXml->global->resources->default_setup->connection->dbname}");
 
         // import structure
         $pv = "";
@@ -200,24 +200,24 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             echo "Extracting...\n";
             passthru("gzip -d {$this->_snapshot}/{$profile}_structure.sql.gz");
             echo "Importing...\n";
-            passthru("pv {$this->_snapshot}/{$profile}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("pv {$this->_snapshot}/{$profile}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
             echo "Repacking...\n";
             passthru("gzip {$this->_snapshot}/{$profile}_structure.sql");
             echo "Data...\n";
             echo "Extracting...\n";
             passthru("gzip -d {$this->_snapshot}/{$profile}_data.sql.gz");
             echo "Importing...\n";
-            passthru("pv {$this->_snapshot}/{$profile}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("pv {$this->_snapshot}/{$profile}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
             echo "Repacking...\n";
             passthru("gzip {$this->_snapshot}/{$profile}_data.sql");
         } else {
             echo "install pv ( sudo apt-get install pv ) to get a progress indicator for importing!\n";
 
             echo "Importing structure...\n";
-            passthru("gunzip -c {$this->_snapshot}/{$profile}_structure.sql.gz | {$pv} mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("gunzip -c {$this->_snapshot}/{$profile}_structure.sql.gz | {$pv} mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
             // import data
             echo "Importing data...\n";
-            passthru("gunzip -c {$this->_snapshot}/{$profile}_data.sql.gz | {$pv} mysql -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password={$this->_configXml->global->resources->default_setup->connection->password} {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("gunzip -c {$this->_snapshot}/{$profile}_data.sql.gz | {$pv} mysql -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
         }
 
         // lets manipulate the database.
