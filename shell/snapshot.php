@@ -81,18 +81,22 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             $connection->ssh_port = 22;
         }
 
+        if (empty($connection->db_host)) {
+            $connection->db_host = 'localhost';
+        }
+
         $structureOnly = $this->_snapshotXml->structure;
         $this->_ignoreTables = " --ignore-table={$connection->dbname}." . implode(" --ignore-table={$connection->dbname}.", explode(',', $structureOnly->ignore_tables));
 
 
         # Dump the database
         echo "Extracting structure...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -d -h localhost -u {$connection->db_username} --password='{$connection->db_password}' {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -d -h {$connection->db_host} -u {$connection->db_username} --password='{$connection->db_password}' {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
         passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_structure_" . $timestamp . ".sql.gz {$this->_snapshot}/{$profile}_structure.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_structure_" . $timestamp . ".sql.gz'");
 
         echo "Extracting data...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h localhost -u {$connection->db_username} --password='{$connection->db_password}' {$connection->dbname} $this->_ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h {$connection->db_host} -u {$connection->db_username} --password='{$connection->db_password}' {$connection->dbname} $this->_ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
         passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_data_" . $timestamp . ".sql.gz {$this->_snapshot}/{$profile}_data.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_data_" . $timestamp . ".sql.gz'");
 
@@ -160,7 +164,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
 
         // create new db on the remote
         echo "Creating Database on Remote: {$dbName}\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqladmin -h localhost -u {$connection->db_username} --password='{$connection->db_password}' create {$dbName}'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqladmin -h {$connection->db_host} -u {$connection->db_username} --password='{$connection->db_password}' create {$dbName}'");
 
         //copy the exported files to the remote
         echo "Copy dump files to Remote\n";
@@ -169,9 +173,9 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
 
         // import to new remote db
         echo "Importing structure...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h localhost -u {$connection->db_username} --password='{$connection->db_password}' {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h {$connection->db_host} -u {$connection->db_username} --password='{$connection->db_password}' {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_structure.sql'");
         echo "Importing data...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h localhost -u {$connection->db_username} --password='{$connection->db_password}' {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysql  -h {$connection->db_host} -u {$connection->db_username} --password='{$connection->db_password}' {$dbName} < ~/{$this->_configXml->global->resources->default_setup->connection->dbname}_data.sql'");
 
         //cleanup
         echo "Cleanup - removing remote dump files...\n";

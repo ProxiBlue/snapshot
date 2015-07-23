@@ -7,6 +7,7 @@
                  <ssh_username><![CDATA[]]></ssh_username>
                  <db_username><![CDATA[]]></db_username>
                  <db_password><![CDATA[]]></db_password>
+                 <db_host><![CDATA[]]></db_host>
                  <dbname><![CDATA[]]></dbname>
         </connection>
         <!-- profile level database adjustment with no profile based database updates-->
@@ -32,6 +33,7 @@
                  <ssh_username><![CDATA[]]></ssh_username>
                  <db_username><![CDATA[]]></db_username>
                  <db_password><![CDATA[]]></db_password>
+                 <db_host><![CDATA[]]></db_host>
                  <dbname><![CDATA[]]></dbname>
         </connection>
      </staging>
