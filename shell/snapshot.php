@@ -203,6 +203,8 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             echo "Structure...\n";
             echo "Extracting...\n";
             passthru("gzip -d {$this->_snapshot}/{$profile}_structure.sql.gz");
+            echo "Removing DEFINER...\n";
+            passthru("sed -i -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' {$this->_snapshot}/{$profile}_structure.sql");
             echo "Importing...\n";
             passthru("pv {$this->_snapshot}/{$profile}_structure.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
             echo "Repacking...\n";
@@ -210,13 +212,14 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             echo "Data...\n";
             echo "Extracting...\n";
             passthru("gzip -d {$this->_snapshot}/{$profile}_data.sql.gz");
+            echo "Removing DEFINER...\n";
+            passthru("sed -i -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' {$this->_snapshot}/{$profile}_data.sql");
             echo "Importing...\n";
             passthru("pv {$this->_snapshot}/{$profile}_data.sql | mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
             echo "Repacking...\n";
             passthru("gzip {$this->_snapshot}/{$profile}_data.sql");
         } else {
             echo "install pv ( sudo apt-get install pv ) to get a progress indicator for importing!\n";
-
             echo "Importing structure...\n";
             passthru("gunzip -c {$this->_snapshot}/{$profile}_structure.sql.gz | {$pv} mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
             // import data
