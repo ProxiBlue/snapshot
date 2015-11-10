@@ -220,11 +220,23 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             passthru("gzip {$this->_snapshot}/{$profile}_data.sql");
         } else {
             echo "install pv ( sudo apt-get install pv ) to get a progress indicator for importing!\n";
+            echo "Extracting...\n";
+            passthru("gzip -d {$this->_snapshot}/{$profile}_structure.sql.gz");
+            echo "Removing DEFINER...\n";
+            passthru("sed -i -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' {$this->_snapshot}/{$profile}_structure.sql");
             echo "Importing structure...\n";
-            passthru("gunzip -c {$this->_snapshot}/{$profile}_structure.sql.gz | {$pv} mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("mysql  -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname} <{$this->_snapshot}/{$profile}_structure.sql");
+            echo "Repacking...\n";
+            passthru("gzip {$this->_snapshot}/{$profile}_structure.sql");
+            echo "Extracting...\n";
+            passthru("gzip -d {$this->_snapshot}/{$profile}_data.sql.gz");
+            echo "Removing DEFINER...\n";
+            passthru("sed -i -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' {$this->_snapshot}/{$profile}_data.sql");
             // import data
             echo "Importing data...\n";
-            passthru("gunzip -c {$this->_snapshot}/{$profile}_data.sql.gz | {$pv} mysql -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname}");
+            passthru("mysql -h {$this->_configXml->global->resources->default_setup->connection->host} -u {$this->_configXml->global->resources->default_setup->connection->username} --password='{$this->_configXml->global->resources->default_setup->connection->password}' {$this->_configXml->global->resources->default_setup->connection->dbname} < {$this->_snapshot}/{$profile}_data.sql");
+            echo "Repacking...\n";
+            passthru("gzip {$this->_snapshot}/{$profile}_data.sql");
         }
 
         // lets manipulate the database.
