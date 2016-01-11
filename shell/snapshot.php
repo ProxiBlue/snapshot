@@ -68,7 +68,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
     /**
      * Perform snapshot
      */
-    function _export($profile) {
+    private function _export($profile) {
         $timestamp = time();
         $connection = $this->_snapshotXml->$profile->connection;
         if (!$connection) {
@@ -103,7 +103,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         echo "Done\n";
     }
 
-    function _copy($newName) {
+    private function _copy($newName) {
 
         $structureOnly = $this->_snapshotXml->structure;
         $this->_ignoreTables = " --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}." . implode(" --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}.", explode(',', $structureOnly->ignore_tables));
@@ -134,7 +134,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         echo "A copy of {$this->_configXml->global->resources->default_setup->connection->dbname} was made to {$this->_configXml->global->resources->default_setup->connection->dbname}-${newName}";
     }
 
-    function _copy_to_remote($profile,$dbName=null) {
+    private function _copy_to_remote($profile,$dbName=null) {
 
         $connection = $this->_snapshotXml->$profile->connection;
 
@@ -185,7 +185,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         echo "Database was copied to remote...";
     }
 
-    function _import($profile) {
+    private function _import($profile) {
 
         $rootpath = $this->_getRootPath();
         $this->_snapshot = $rootpath . 'snapshot';
