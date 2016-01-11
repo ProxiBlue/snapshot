@@ -68,7 +68,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
     /**
      * Perform snapshot
      */
-    function _export($profile) {
+    private function _export($profile) {
         $timestamp = time();
         $connection = $this->_snapshotXml->$profile->connection;
         if (!$connection) {
@@ -88,22 +88,23 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         $structureOnly = $this->_snapshotXml->structure;
         $this->_ignoreTables = " --ignore-table={$connection->dbname}." . implode(" --ignore-table={$connection->dbname}.", explode(',', $structureOnly->ignore_tables));
 
+        $remotePassword = escapeshellcmd($connection->db_password);
 
         # Dump the database
         echo "Extracting structure...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -d -h {$connection->db_host} -u {$connection->db_username} --password='{$connection->db_password}' {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -d -h {$connection->db_host} -u {$connection->db_username} --password={$remotePassword} {$connection->dbname} | gzip > \"{$profile}_structure_" . $timestamp . ".sql.gz\"'");
         passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_structure_" . $timestamp . ".sql.gz {$this->_snapshot}/{$profile}_structure.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_structure_" . $timestamp . ".sql.gz'");
 
         echo "Extracting data...\n";
-        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h {$connection->db_host} -u {$connection->db_username} --password='{$connection->db_password}' {$connection->dbname} $this->_ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
+        passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'mysqldump --single-transaction -h {$connection->db_host} -u {$connection->db_username} --password={$remotePassword} {$connection->dbname} $this->_ignoreTables | gzip > \"{$profile}_data_" . $timestamp . ".sql.gz\"'");
         passthru("scp -P {$connection->ssh_port} {$connection->ssh_username}@{$connection->host}:~/{$profile}_data_" . $timestamp . ".sql.gz {$this->_snapshot}/{$profile}_data.sql.gz");
         passthru("ssh -p {$connection->ssh_port} {$connection->ssh_username}@{$connection->host} 'rm -rf ~/{$profile}_data_" . $timestamp . ".sql.gz'");
 
         echo "Done\n";
     }
 
-    function _copy($newName) {
+    private function _copy($newName) {
 
         $structureOnly = $this->_snapshotXml->structure;
         $this->_ignoreTables = " --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}." . implode(" --ignore-table={$this->_configXml->global->resources->default_setup->connection->dbname}.", explode(',', $structureOnly->ignore_tables));
@@ -134,7 +135,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         echo "A copy of {$this->_configXml->global->resources->default_setup->connection->dbname} was made to {$this->_configXml->global->resources->default_setup->connection->dbname}-${newName}";
     }
 
-    function _copy_to_remote($profile,$dbName=null) {
+    private function _copy_to_remote($profile,$dbName=null) {
 
         $connection = $this->_snapshotXml->$profile->connection;
 
@@ -185,7 +186,7 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
         echo "Database was copied to remote...";
     }
 
-    function _import($profile) {
+    private function _import($profile) {
 
         $rootpath = $this->_getRootPath();
         $this->_snapshot = $rootpath . 'snapshot';
