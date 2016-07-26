@@ -60,6 +60,8 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             $this->_copy($this->getArg('copy'));
         } else if ($this->getArg('copy-to-remote')) {
             $this->_copy_to_remote($this->getArg('copy-to-remote'),$this->getArg('dbname'));
+        } else if ($this->getArg('run-import-updates')) {
+            $this->runAllImportUpdates($this->getArg('run-import-updates'));
         } else {
             echo $this->usageHelp();
         }
@@ -240,6 +242,10 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
             passthru("gzip {$this->_snapshot}/{$profile}_data.sql");
         }
 
+        $this->runAllImportUpdates($profile);
+    }
+
+    private function runAllImportUpdates($profile) {
         // lets manipulate the database.
         // at this pont we can instantiate the magento system, as the datbaase is now imported.
         $this->getConnection();
@@ -339,6 +345,7 @@ Options:
   --fetch <profile> Do export and import in one go.  Current database will be replaced with update
   --export-remote <profile>  Take snapshot of the given remote server [must be defined in snapshot.xml]
   --import <profile> Import the given snapshot
+  --run-import-updates <profile> Just run the snapshot SQL changes that happen after the import
   --copy [newname] Copy the current (local) database to a new database - will create a copy of the local db with the current name prefixed to the given new name. Used for branching in GIT
   --copy-to-remote <profile> [--dbname <name of db>] Copy the local db to the remote server. If no dbname is given it will be named as is the local db name
 
