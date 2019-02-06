@@ -89,7 +89,9 @@ class ProxiBlue_Shell_Snapshot extends Mage_Shell_Abstract {
 
         $structureOnly = $this->_snapshotXml->structure;
         $this->_ignoreTables = " --ignore-table={$connection->dbname}." . implode(" --ignore-table={$connection->dbname}.", explode(',', $structureOnly->ignore_tables));
-
+        $this->_ignoreTables = preg_replace('/[\x00-\x1F\x7F]/u', '', $this->_ignoreTables);
+        $this->_ignoreTables = str_replace(' ', '', $this->_ignoreTables);
+        
         $remotePassword = escapeshellcmd($connection->db_password);
 
         # Dump the database
